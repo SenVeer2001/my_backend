@@ -5,18 +5,27 @@ const socketIo = require("socket.io");
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
-  cors: { origin: "*" }, // Change this in production
+  cors: { origin: "*" },
 });
+
+const rooms = {}; // Store users in rooms
 
 io.on("connection", (socket) => {
   console.log(`User connected: ${socket.id}`);
 
   socket.on("join-room", (roomId, userId) => {
+    if (!rooms[roomId]) {
+      rooms[roomId] = [];
+    }
+    rooms[roomId].push(userId);
     socket.join(roomId);
-    socket.to(roomId).emit("user-connected", userId);
+
+    // Send list of users in the room
+    io.to(roomId).emit("user-list", rooms[roomId]);
 
     socket.on("disconnect", () => {
-      socket.to(roomId).emit("user-disconnected", userId);
+      rooms[roomId] = rooms[roomId].filter((id) => id !== userId);
+      io.to(roomId).emit("user-list", rooms[roomId]);
     });
   });
 
